@@ -4,6 +4,7 @@ from collections import namedtuple
 
 from log_functions import list_print
 from mod_config import _bc
+from analysis.analyze_elm import binary_search
 
 
 # Declare namedtuple for readwrite status of variables:
@@ -18,17 +19,31 @@ class ReadWrite(object):
     def __repr__(self):
         return f"{self.status}@L{self.ln}"
 
+    def __hash__(self):
+        return hash((self.status, self.ln))
 
+class CallTreeSubroutine():
+    def __init__(self) -> None:
+        self.name = ""
+        self.ln = 0
+        self.args = []
+        self.subcalls = []
+    def __repr__(self):
+        return f"{self.name} @{self.ln}"
 # namedtuple to log the subroutines called and their arguments
 # to properly match read/write status of variables.
 # SubroutineCall = namedtuple('SubroutineCall',['subname','args'])
 # subclass namedtuple to allow overriding equality.
-class SubroutineCall(namedtuple("SubroutineCall", ["subname", "args"])):
+class SubroutineCall(namedtuple("SubroutineCall", ["subname", "args", "ln"])):
     def __eq__(self, other):
-        return (self.subname == other.subname) and (self.args == other.args)
+        return (
+            (self.subname == other.subname)
+            and (self.args == other.args)
+            and (self.ln == other.ln)
+        )
 
     def __str__(self):
-        return f"{self.subname} ({self.args})"
+        return f"{self.subname} {self.ln} ({self.args})"
 
 
 def determine_variable_status(
@@ -321,3 +336,36 @@ def replace_ptr_with_targets(elmtype, type_dict, insts_to_type_dict, use_c13c14=
                 elmtype.update(targets_to_add)
 
     return elmtype
+
+
+def callTree_helper(subroutine, parent, flat):
+    
+    for calls, childsub in subroutine.child_Subroutine.items():
+        for s in subroutine.child_Subroutine[calls].subroutine_call:
+            if subroutine.name == s.subname:
+                index = binary_search(flat, s.ln, r=1)
+                if index == -1 or flat[index].default:
+                    c = CallTreeSubroutine()
+                    c.name = childsub.name
+                    c.args = s.args
+                    c.ln = s.ln
+                    #if subroutine.child_Subroutine[calls] not in parent.calltree:
+                    # parent.calltree.append(c)
+                    parent.subcalls.append(c)
+                    callTree_helper(
+                        childsub, c, flat
+                    )
+
+
+def print_calltree_helper(node, depth):
+    indent = "|--->" * depth
+    print(f"{indent}{node.name}%{node.ln}")
+    
+    for child in node.subcalls:
+        
+        print_calltree_helper(child, depth + 1)
+        
+    # for args in node.arguments:
+    #     print(f"{indent} - {args}")
+    # for  in node.calltree:
+    #     print_calltree_helper(subnode, depth + 1)
