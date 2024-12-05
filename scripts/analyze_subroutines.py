@@ -860,13 +860,13 @@ class Subroutine(object):
         if casename:
             ofile.close()
 
-    def print_calltree(self, parent_ifs):
+    def print_calltree(self, parent_ifs, namelist):
         flat = flatten(parent_ifs)     
         parent = CallTreeSubroutine()
         parent.name=self.name
         parent.ln=self.startline 
         self.calltree = parent
-        callTree_helper(self, parent, flat)
+        callTree_helper(self, parent, flat, namelist)
 
         print_calltree_helper(self.calltree, 0)
 

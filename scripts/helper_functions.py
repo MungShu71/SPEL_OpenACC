@@ -2,6 +2,7 @@ import re
 import sys
 from collections import namedtuple
 
+from analysis.analyze_ifs import flatten, run, set_default
 from log_functions import list_print
 from mod_config import _bc
 from analysis.analyze_elm import binary_search
@@ -338,22 +339,26 @@ def replace_ptr_with_targets(elmtype, type_dict, insts_to_type_dict, use_c13c14=
     return elmtype
 
 
-def callTree_helper(subroutine, parent, flat):
+def callTree_helper(subroutine, parent, flat, namelist):
     
     for calls, childsub in subroutine.child_Subroutine.items():
         for s in subroutine.child_Subroutine[calls].subroutine_call:
             if subroutine.name == s.subname:
+                if subroutine.filepath != childsub.filepath:
+                    new_parent_ifs = (run(childsub.filepath))
+                    set_default(new_parent_ifs, namelist)
+                    flat = flatten(new_parent_ifs)
+
                 index = binary_search(flat, s.ln, r=1)
                 if index == -1 or flat[index].default:
                     c = CallTreeSubroutine()
                     c.name = childsub.name
                     c.args = s.args
                     c.ln = s.ln
-                    #if subroutine.child_Subroutine[calls] not in parent.calltree:
-                    # parent.calltree.append(c)
+
                     parent.subcalls.append(c)
                     callTree_helper(
-                        childsub, c, flat
+                        childsub, c, flat, namelist
                     )
 
 
